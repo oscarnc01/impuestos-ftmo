@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FTMO IRPF">
+<meta name="theme-color" content="#0a0d0f">
+<title>FTMO · IRPF</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0d0f; --surface: #111518; --border: #1e2529; --border2: #252c32;
+  --accent: #00e5a0; --accent-dim: rgba(0,229,160,0.08); --accent-glow: rgba(0,229,160,0.18);
+  --danger: #ff4d6a; --danger-dim: rgba(255,77,106,0.1);
+  --warn: #f5a623; --warn-dim: rgba(245,166,35,0.1);
+  --text: #e8edf0; --text2: #8a9ba8; --text3: #4a5c68;
+  --mono: 'DM Mono', monospace; --display: 'Syne', sans-serif;
+  --safe-top: env(safe-area-inset-top); --safe-bottom: env(safe-area-inset-bottom);
+}
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: var(--mono); min-height: 100vh; min-height: 100dvh; overflow-x: hidden; padding-bottom: calc(24px + var(--safe-bottom)); }
+body::before { content:''; position:fixed; inset:0; background-image: linear-gradient(rgba(0,229,160,0.03) 1px,transparent 1px), linear-gradient(90deg,rgba(0,229,160,0.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; }
+.wrapper { max-width:1100px; margin:0 auto; padding:calc(var(--safe-top) + 32px) 16px 40px; position:relative; z-index:1; }
+
+header { padding-bottom:24px; border-bottom:1px solid var(--border); margin-bottom:24px; display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+.logo-tag { font-size:9px; letter-spacing:.2em; text-transform:uppercase; color:var(--accent); }
+.logo-h1 { font-family:var(--display); font-size:28px; font-weight:800; letter-spacing:-.03em; margin-top:4px; }
+.logo-h1 span { color:var(--accent); }
+.header-meta { text-align:right; font-size:11px; color:var(--text3); line-height:1.8; }
+
+.top-bar { display:flex; align-items:center; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
+
+.fx-badge { display:inline-flex; align-items:center; gap:7px; background:var(--surface); border:1px solid var(--border2); border-radius:6px; padding:7px 13px; font-size:12px; cursor:pointer; transition:border-color .2s; -webkit-tap-highlight-color:transparent; user-select:none; }
+.fx-badge:active { opacity:.7; }
+.fx-dot { width:7px; height:7px; border-radius:50%; background:var(--accent); flex-shrink:0; }
+.fx-dot.loading { background:var(--warn); animation:pulse 1s infinite; }
+.fx-dot.error { background:var(--danger); }
+.fx-val { color:var(--accent); font-weight:500; }
+.fx-meta { color:var(--text2); font-size:11px; }
+.fx-refresh { font-size:14px; color:var(--text2); display:inline-block; }
+.fx-refresh.spin { animation:spin .6s linear; }
+
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+@keyframes spin { to{transform:rotate(360deg)} }
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+.year-selector { display:flex; gap:6px; flex-wrap:wrap; }
+.year-btn { font-family:var(--mono); font-size:11px; letter-spacing:.08em; padding:5px 11px; border-radius:5px; cursor:pointer; border:1px solid var(--border2); background:var(--bg); color:var(--text2); transition:all .15s; -webkit-tap-highlight-color:transparent; }
+.year-btn:hover { border-color:var(--accent); color:var(--accent); }
+.year-btn.active { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); font-weight:600; }
+.year-btn.all.active { background:rgba(138,155,168,.1); border-color:var(--text2); color:var(--text); }
+
+.kpi-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:20px; }
+@media (min-width:600px) { .kpi-grid { grid-template-columns:repeat(4,1fr); } }
+.kpi { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; position:relative; overflow:hidden; animation:fadeUp .4s ease both; }
+.kpi::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
+.kpi.green::before { background:var(--accent); } .kpi.red::before { background:var(--danger); } .kpi.warn::before { background:var(--warn); } .kpi.gray::before { background:var(--text3); }
+.kpi-label { font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:var(--text2); margin-bottom:7px; }
+.kpi-val { font-family:var(--display); font-size:20px; font-weight:700; letter-spacing:-.02em; line-height:1; }
+.kpi-val.green { color:var(--accent); } .kpi-val.red { color:var(--danger); } .kpi-val.warn { color:var(--warn); }
+.kpi-sub { font-size:10px; color:var(--text2); margin-top:5px; line-height:1.4; }
+
+.layout { display:grid; grid-template-columns:1fr; gap:14px; }
+@media (min-width:780px) { .layout { grid-template-columns:340px 1fr; align-items:start; } }
+
+.panel { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:12px; }
+.panel:last-child { margin-bottom:0; }
+.panel-head { padding:13px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+.panel-title { font-family:var(--display); font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+.panel-head-right { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.badge { font-size:10px; letter-spacing:.08em; text-transform:uppercase; padding:3px 7px; border-radius:3px; background:var(--accent-dim); color:var(--accent); border:1px solid rgba(0,229,160,.2); }
+.panel-body { padding:16px; }
+
+.salary-box { background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:12px; margin-bottom:4px; }
+.salary-note { font-size:10px; color:var(--text2); margin-top:8px; line-height:1.6; }
+
+.field { margin-bottom:11px; }
+.field label { display:block; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--text2); margin-bottom:5px; }
+.field input { width:100%; background:var(--bg); border:1px solid var(--border2); border-radius:5px; padding:10px 12px; font-family:var(--mono); font-size:14px; color:var(--text); outline:none; -webkit-appearance:none; transition:border-color .2s,box-shadow .2s; }
+.field input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+.field input::placeholder { color:var(--text3); }
+.field-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.fx-input-wrap { position:relative; }
+.fx-input-wrap input { padding-right:62px; }
+.fx-live-tag { position:absolute; right:8px; top:50%; transform:translateY(-50%); font-size:8px; letter-spacing:.1em; color:var(--accent); background:var(--accent-dim); border:1px solid rgba(0,229,160,.2); border-radius:3px; padding:2px 5px; white-space:nowrap; pointer-events:none; }
+.btn-add { width:100%; padding:12px; background:var(--accent); color:#000; border:none; border-radius:6px; font-family:var(--display); font-size:13px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; margin-top:4px; -webkit-tap-highlight-color:transparent; transition:background .15s; }
+.btn-add:active { background:#00ffb0; transform:scale(.98); }
+
+.btn-export { font-size:9px; letter-spacing:.08em; text-transform:uppercase; padding:4px 9px; border-radius:3px; cursor:pointer; font-family:var(--mono); border:1px solid var(--border2); background:var(--bg); color:var(--text2); transition:all .15s; white-space:nowrap; -webkit-tap-highlight-color:transparent; }
+.btn-export:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-dim); }
+.btn-export:active { transform:scale(.97); }
+.btn-import { border-color:rgba(245,166,35,.3); color:var(--warn); }
+.btn-import:hover { border-color:var(--warn); color:var(--warn); background:var(--warn-dim); }
+.btn-edit { border-color:rgba(138,155,168,.3); color:var(--text2); }
+.btn-edit:hover { border-color:var(--text2); color:var(--text); }
+.btn-edit.active { border-color:var(--accent); color:var(--accent); background:var(--accent-dim); }
+.btn-reset { border-color:rgba(255,77,106,.3); color:var(--danger); }
+.btn-reset:hover { border-color:var(--danger); background:var(--danger-dim); }
+
+.table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+table { width:100%; min-width:0; border-collapse:collapse; font-size:12px; }
+thead tr { background:var(--bg); border-bottom:1px solid var(--border2); }
+th { padding:8px 8px; text-align:right; font-size:9px; letter-spacing:.08em; text-transform:uppercase; color:var(--text2); font-weight:500; white-space:nowrap; }
+th:first-child { text-align:left; }
+td { padding:9px 8px; text-align:right; border-bottom:1px solid var(--border); font-size:11px; white-space:nowrap; }
+td:first-child { text-align:left; color:var(--text2); }
+tr:last-child td { border-bottom:none; }
+.c-green { color:var(--accent); } .c-red { color:var(--danger); }
+.btn-del { background:none; border:1px solid transparent; color:var(--text3); cursor:pointer; font-family:var(--mono); font-size:12px; padding:4px 8px; border-radius:3px; -webkit-tap-highlight-color:transparent; transition:all .15s; }
+.btn-del:active { border-color:var(--danger); color:var(--danger); background:var(--danger-dim); }
+.btn-edit-row { background:none; border:1px solid transparent; color:var(--text3); cursor:pointer; font-family:var(--mono); font-size:12px; padding:4px 8px; border-radius:3px; -webkit-tap-highlight-color:transparent; transition:all .15s; }
+.btn-edit-row:active { border-color:var(--accent); color:var(--accent); background:var(--accent-dim); }
+.btn-edit-row.saving { color:var(--accent); border-color:rgba(0,229,160,.4); }
+tr.editing-row td { background:var(--accent-dim); }
+.edit-expand-row td { padding:0 !important; border-bottom:2px solid rgba(0,229,160,.3) !important; }
+.edit-expand { padding:14px 16px; background:var(--accent-dim); border-top:1px solid rgba(0,229,160,.15); }
+.edit-expand-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+@media (min-width:480px) { .edit-expand-grid { grid-template-columns:repeat(4,1fr); } }
+.field-input { width:100%; background:var(--bg); border:1px solid var(--border2); border-radius:5px; padding:9px 10px; font-family:var(--mono); font-size:13px; color:var(--text); outline:none; -webkit-appearance:none; transition:border-color .2s,box-shadow .2s; }
+.field-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+@media (max-width: 600px) {
+  .col-split, .col-fx { display: none; }
+  table { min-width: unset; }
+}
+.row-input { background:var(--bg); border:1px solid var(--border2); border-radius:3px; color:var(--text); font-family:var(--mono); font-size:11px; padding:4px 5px; outline:none; width:80px; text-align:right; -webkit-appearance:none; transition:border-color .15s; }
+.row-input:focus { border-color:var(--accent); }
+.row-input.date-input { width:95px; text-align:left; }
+.empty { padding:44px 16px; text-align:center; color:var(--text3); font-size:12px; line-height:2; }
+.empty-icon { font-size:24px; opacity:.3; margin-bottom:10px; }
+
+/* TRAMOS */
+.tramos-title { font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--text2); margin-bottom:9px; }
+.tramo-row { display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:8px; padding:7px 10px; border-radius:4px; margin-bottom:4px; font-size:12px; background:var(--bg); border:1px solid var(--border); transition:border-color .2s; }
+.tramo-row.active { border-color:rgba(0,229,160,.25); background:var(--accent-dim); }
+.tramo-row.editing { border-color:rgba(0,229,160,.4); background:var(--accent-dim); grid-template-columns:1fr auto auto auto; }
+.tramo-range { color:var(--text2); font-size:11px; }
+.tramo-tipo { color:var(--accent); font-weight:600; width:38px; text-align:right; }
+.tramo-imp { color:var(--text); text-align:right; min-width:80px; }
+.tramo-input { background:var(--surface); border:1px solid var(--border2); border-radius:3px; color:var(--text); font-family:var(--mono); font-size:11px; padding:4px 6px; outline:none; width:80px; text-align:right; transition:border-color .2s; -webkit-appearance:none; }
+.tramo-input:focus { border-color:var(--accent); }
+.tramo-input.w-tipo { width:52px; }
+
+.sum-box { background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:13px; margin-top:12px; }
+.sum-row { display:flex; justify-content:space-between; font-size:12px; padding:5px 0; color:var(--text2); border-bottom:1px solid var(--border); }
+.sum-row:last-child { border-bottom:none; font-family:var(--display); font-size:13px; font-weight:700; color:var(--text); padding-top:9px; margin-top:2px; }
+.sum-val { color:var(--text); } .sum-val.red { color:var(--danger); }
+
+.new-row { animation:fadeUp .25s ease both; }
+.toast { position:fixed; bottom:calc(24px + var(--safe-bottom)); left:50%; transform:translateX(-50%) translateY(20px); background:var(--surface); border:1px solid var(--accent); color:var(--accent); font-size:12px; padding:9px 18px; border-radius:6px; opacity:0; transition:all .3s; pointer-events:none; white-space:nowrap; z-index:999; }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div>
+      <div class="logo-tag">Gestión fiscal · España</div>
+      <div class="logo-h1">FTMO <span>IRPF</span></div>
+    </div>
+    <div class="header-meta">
+      <div>Tramos IRPF <span id="irpf-year"></span></div>
+      <div id="today-label"></div>
+    </div>
+  </header>
+
+  <div class="top-bar">
+    <div class="fx-badge" onclick="refreshFX()">
+      <div class="fx-dot loading" id="fx-dot"></div>
+      <span class="fx-meta">USD/EUR</span>
+      <span class="fx-val" id="fx-val">...</span>
+      <span class="fx-meta" id="fx-time"></span>
+      <span class="fx-refresh" id="fx-refresh">↻</span>
+      <span id="fx-err" style="display:none;color:var(--danger);font-size:10px;">Error · reintentar</span>
+    </div>
+    <div class="year-selector" id="year-selector"></div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi gray"><div class="kpi-label">Cobrado bruto total</div><div class="kpi-val" id="kpi-bruto">—</div><div class="kpi-sub">tu parte en €</div></div>
+    <div class="kpi red"><div class="kpi-label">Impuesto a guardar</div><div class="kpi-val red" id="kpi-impuesto">—</div><div class="kpi-sub">IRPF marginal por FTMO</div></div>
+    <div class="kpi green"><div class="kpi-label">Beneficio neto real</div><div class="kpi-val green" id="kpi-neto">—</div><div class="kpi-sub">después de apartar IRPF</div></div>
+    <div class="kpi warn"><div class="kpi-label">Tipo efectivo FTMO</div><div class="kpi-val warn" id="kpi-tipo">—</div><div class="kpi-sub">% medio sobre tus cobros</div></div>
+  </div>
+
+  <div class="layout">
+    <div>
+      <!-- Configuración -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Configuración</span>
+          <span class="badge">Base IRPF</span>
+        </div>
+        <div class="panel-body">
+          <div class="salary-box">
+            <div class="field" style="margin-bottom:0">
+              <label>Salario anual bruto (€)</label>
+              <input type="number" id="salary" value="56000" min="0" step="100" inputmode="decimal" oninput="saveState();render()">
+            </div>
+            <div class="salary-note">El IRPF de FTMO se calcula sobre el tramo marginal que supera tu salario base.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Nuevo cobro -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Nuevo cobro</span>
+          <span class="badge">+ Añadir</span>
+        </div>
+        <div class="panel-body">
+          <div class="field"><label>Fecha del cobro</label><input type="date" id="f-fecha"></div>
+          <div class="field"><label>Beneficio bruto de la cuenta ($)</label><input type="number" id="f-bruto" placeholder="ej. 5000" min="0" inputmode="decimal"></div>
+          <div class="field-row">
+            <div class="field"><label>Split FTMO (%)</label><input type="number" id="f-split" value="80" min="0" max="100" inputmode="decimal"></div>
+            <div class="field"><label>Tipo cambio $/€</label>
+              <div class="fx-input-wrap">
+                <input type="number" id="f-fx" step="0.0001" value="0.9150" inputmode="decimal">
+                <span class="fx-live-tag" id="fx-live-tag" style="display:none">⬤ LIVE</span>
+              </div>
+            </div>
+          </div>
+          <button class="btn-add" onclick="addCobro()">+ Registrar cobro</button>
+        </div>
+      </div>
+
+      <!-- Tramos IRPF -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Tramos IRPF</span>
+          <div class="panel-head-right">
+            <button class="btn-export btn-edit" id="btn-edit-tramos" onclick="toggleEditTramos()">✎ Editar</button>
+            <button class="btn-export btn-reset" id="btn-reset-tramos" onclick="resetTramos()" style="display:none">↺ Restablecer</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="tramos-wrap"></div>
+          <div class="sum-box" id="sum-box" style="display:none">
+            <div class="sum-row"><span>IRPF solo salario</span><span class="sum-val" id="s-solo">—</span></div>
+            <div class="sum-row"><span>IRPF salario + FTMO</span><span class="sum-val" id="s-total">—</span></div>
+            <div class="sum-row"><span>Impuesto por FTMO</span><span class="sum-val red" id="s-diff">—</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla cobros -->
+    <div class="panel" style="margin-bottom:0">
+      <div class="panel-head">
+        <span class="panel-title">Registro de cobros</span>
+        <div class="panel-head-right">
+          <span class="badge" id="badge-count">0 cobros</span>
+          <button class="btn-export" onclick="exportCSV()">↓ CSV</button>
+          <button class="btn-export" onclick="exportExcel()">↓ Excel</button>
+          <button class="btn-export btn-import" onclick="document.getElementById('import-input').click()">↑ Importar</button>
+          <input type="file" id="import-input" accept=".csv" style="display:none" onchange="importCSV(this)">
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th><th>Bruto $</th><th>Tu parte €</th><th>Neto €</th><th>Impuesto €</th><th class="col-split">Split</th><th class="col-fx">T/C</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── TRAMOS por defecto ────────────────────────────────
+const TRAMOS_DEFAULT = [
+  { desde:0,      hasta:18079.99,  tipo:0.23 },
+  { desde:18080,  hasta:36159.99,  tipo:0.28 },
+  { desde:36160,  hasta:54239.99,  tipo:0.35 },
+  { desde:54240,  hasta:77449.99,  tipo:0.40 },
+  { desde:77450,  hasta:107259.99, tipo:0.45 },
+  { desde:107260, hasta:142959.99, tipo:0.46 },
+  { desde:142960, hasta:208389.99, tipo:0.47 },
+  { desde:208390, hasta:9999999,   tipo:0.49 },
+];
+
+// tramosPerYear: { "2024": [...], "2025": [...] }
+// If a year has no custom tramos, falls back to TRAMOS_DEFAULT
+let tramosPerYear = {};
+let editingTramos = false;
+
+function getTramosForYear(y) {
+  return tramosPerYear[y] ? JSON.parse(JSON.stringify(tramosPerYear[y])) : JSON.parse(JSON.stringify(TRAMOS_DEFAULT));
+}
+
+function calcIRPF(base, tramos) {
+  let total=0, desglose=[];
+  for (const t of tramos) {
+    if (base<=t.desde){desglose.push({...t,aplicado:0});continue;}
+    const top=Math.min(base,t.hasta+0.01), aplicado=(top-t.desde)*t.tipo;
+    total+=aplicado; desglose.push({...t,aplicado});
+  }
+  return {total,desglose};
+}
+
+// ── UTILS ─────────────────────────────────────────────
+const fmt=(n,d=2)=>isNaN(n)?'—':n.toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d,useGrouping:true});
+const fmtDate=iso=>{if(!iso)return'—';const[y,m,d]=iso.split('-');return`${d}/${m}/${y.slice(2)}`;};
+const fmtNum=n=>parseFloat((isNaN(n)?0:n).toFixed(2));
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+// ── ESTADO + PERSISTENCIA ─────────────────────────────
+let cobros=[], nextId=1, currentFX=0.915, selectedYear='all';
+const LS_KEY='ftmo_irpf_v2';
+
+function saveState(){
+  localStorage.setItem(LS_KEY, JSON.stringify({
+    cobros, nextId, tramosPerYear,
+    salary: document.getElementById('salary').value
+  }));
+}
+
+function loadState(){
+  try {
+    const s=JSON.parse(localStorage.getItem(LS_KEY)||'null');
+    if(!s) return;
+    cobros=s.cobros||[]; nextId=s.nextId||cobros.length+1;
+    tramosPerYear=s.tramosPerYear||{};
+    if(s.salary) document.getElementById('salary').value=s.salary;
+  } catch(e){}
+}
+
+// ── INIT ──────────────────────────────────────────────
+const todayISO=new Date().toISOString().split('T')[0];
+const currentYear=String(new Date().getFullYear());
+document.getElementById('f-fecha').value=todayISO;
+document.getElementById('today-label').textContent=new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'});
+document.getElementById('irpf-year').textContent=currentYear;
+loadState();
+selectedYear=currentYear;
+buildYearSelector();
+render();
+refreshFX();
+
+// ── YEAR SELECTOR ─────────────────────────────────────
+function buildYearSelector(){
+  const cobrosYears=[...new Set(cobros.map(c=>c.fecha.slice(0,4)))].sort();
+  // Always show at least the current year
+  const years=[...new Set([...cobrosYears, currentYear])].sort();
+  const wrap=document.getElementById('year-selector');
+  wrap.innerHTML=''; wrap.style.display='flex';
+  if(cobrosYears.length>1){
+    const all=document.createElement('button');
+    all.className='year-btn all'+(selectedYear==='all'?' active':'');
+    all.textContent='Todos'; all.onclick=()=>{selectedYear='all';buildYearSelector();render();};
+    wrap.appendChild(all);
+  }
+  years.forEach(y=>{
+    const btn=document.createElement('button');
+    btn.className='year-btn'+(selectedYear===y?' active':'');
+    btn.textContent=y; btn.onclick=()=>{selectedYear=y;document.getElementById('irpf-year').textContent=y;editingTramos=false;buildYearSelector();render();};
+    wrap.appendChild(btn);
+  });
+  // Update header year label
+  if(selectedYear!=='all') document.getElementById('irpf-year').textContent=selectedYear;
+  else document.getElementById('irpf-year').textContent=currentYear;
+}
+
+// ── TIPO DE CAMBIO ────────────────────────────────────
+async function refreshFX(){
+  const dot=document.getElementById('fx-dot'), val=document.getElementById('fx-val'),
+    ref=document.getElementById('fx-refresh'), err=document.getElementById('fx-err'),
+    tag=document.getElementById('fx-live-tag');
+  // Show current value immediately while loading
+  dot.className='fx-dot loading'; val.textContent=currentFX.toFixed(4); ref.classList.add('spin'); err.style.display='none'; tag.style.display='none';
+  try {
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),4000);
+    const res=await fetch('https://api.frankfurter.app/latest?from=USD&to=EUR',{signal:controller.signal});
+    clearTimeout(timeout);
+    if(!res.ok) throw new Error();
+    const data=await res.json();
+    const rate=data.rates?.EUR;
+    if(!rate||isNaN(rate)) throw new Error();
+    currentFX=rate;
+    document.getElementById('f-fx').value=rate.toFixed(4);
+    val.textContent=rate.toFixed(4);
+    document.getElementById('fx-time').textContent=new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+' · frankfurter.app';
+    dot.className='fx-dot'; tag.style.display='';
+  } catch(e){
+    dot.className='fx-dot error';
+    val.textContent=currentFX.toFixed(4);
+    document.getElementById('fx-time').textContent='sin conexión · valor manual';
+    err.style.display='';
+  } finally { setTimeout(()=>ref.classList.remove('spin'),600); }
+}
+
+// ── COBROS ────────────────────────────────────────────
+function addCobro(){
+  const fecha=document.getElementById('f-fecha').value,
+    bruto=parseFloat(document.getElementById('f-bruto').value),
+    split=parseFloat(document.getElementById('f-split').value)/100,
+    fx=parseFloat(document.getElementById('f-fx').value);
+  if(!fecha||isNaN(bruto)||bruto<=0||isNaN(split)||isNaN(fx)){alert('Completa todos los campos.');return;}
+  cobros.push({id:nextId++,fecha,bruto,split,fx,tuParteUSD:bruto*split,tuParteEUR:bruto*split*fx});
+  cobros.sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  document.getElementById('f-bruto').value='';
+  document.getElementById('f-fecha').value=todayISO;
+  saveState(); buildYearSelector(); render();
+  toast('Cobro registrado ✓');
+}
+
+function deleteCobro(id){
+  if(!confirm('¿Eliminar este cobro?')) return;
+  cobros=cobros.filter(c=>c.id!==id);
+  saveState(); buildYearSelector(); render();
+}
+
+function editCobro(id, btn){
+  const cobro=cobros.find(c=>c.id===id);
+  if(!cobro) return;
+  const tr=btn.closest('tr');
+  if(tr.classList.contains('editing-row')){ saveCobro(id, tr); return; }
+
+  // Remove any existing edit rows
+  document.querySelectorAll('tr.editing-row').forEach(r=>r.remove());
+
+  tr.classList.add('editing-row');
+  btn.textContent='✓'; btn.classList.add('saving');
+
+  // Insert an expanded edit row below
+  const editTr=document.createElement('tr');
+  editTr.className='edit-expand-row';
+  editTr.dataset.editId=id;
+  editTr.innerHTML=`
+    <td colspan="8" style="padding:0">
+      <div class="edit-expand">
+        <div class="edit-expand-grid">
+          <div class="field" style="margin-bottom:8px"><label>Fecha</label><input class="field-input" id="ei-fecha" type="date" value="${cobro.fecha}"></div>
+          <div class="field" style="margin-bottom:8px"><label>Bruto ($)</label><input class="field-input" id="ei-bruto" type="number" value="${cobro.bruto}" min="0" step="any" inputmode="decimal"></div>
+          <div class="field" style="margin-bottom:8px"><label>Split (%)</label><input class="field-input" id="ei-split" type="number" value="${Math.round(cobro.split*100)}" min="0" max="100" inputmode="decimal"></div>
+          <div class="field" style="margin-bottom:0"><label>Tipo cambio</label><input class="field-input" id="ei-fx" type="number" value="${cobro.fx}" min="0" step="0.0001" inputmode="decimal"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn-add" style="flex:1;padding:9px;font-size:12px" onclick="saveCobro(${id})">✓ Guardar</button>
+          <button class="btn-export" style="padding:9px 14px;font-size:11px" onclick="cancelEdit(${id})">Cancelar</button>
+        </div>
+      </div>
+    </td>
+  `;
+  tr.after(editTr);
+  document.getElementById('ei-fecha').focus();
+}
+
+function saveCobro(id){
+  const fecha=document.getElementById('ei-fecha')?.value;
+  const bruto=parseFloat(document.getElementById('ei-bruto')?.value);
+  const split=parseFloat(document.getElementById('ei-split')?.value)/100;
+  const fx=parseFloat(document.getElementById('ei-fx')?.value);
+  if(!fecha||isNaN(bruto)||bruto<=0||isNaN(split)||isNaN(fx)){
+    toast('Valores inválidos'); return;
+  }
+  const idx=cobros.findIndex(c=>c.id===id);
+  if(idx===-1) return;
+  cobros[idx]={id, fecha, bruto, split, fx, tuParteUSD:bruto*split, tuParteEUR:bruto*split*fx};
+  cobros.sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  saveState(); buildYearSelector(); render();
+  toast('Cobro actualizado ✓');
+}
+
+function cancelEdit(id){
+  render();
+}
+
+// ── TRAMOS: EDICIÓN ───────────────────────────────────
+function toggleEditTramos(){
+  editingTramos=!editingTramos;
+  const btn=document.getElementById('btn-edit-tramos');
+  const btnReset=document.getElementById('btn-reset-tramos');
+  btn.textContent=editingTramos?'✓ Guardar':'✎ Editar';
+  btn.classList.toggle('active', editingTramos);
+  const year=selectedYear==='all'?currentYear:selectedYear;
+  const isCustom=!!tramosPerYear[year];
+  btnReset.style.display=(editingTramos||isCustom)?'':'none';
+  if(!editingTramos) saveTramoEdits();
+  render();
+}
+
+function saveTramoEdits(){
+  const year=selectedYear==='all'?currentYear:selectedYear;
+  const tramos=getTramosForYear(year);
+  const updated=tramos.map((t,i)=>{
+    const hastaInput=document.querySelector(`.tramo-hasta[data-i="${i}"]`);
+    const tipoInput=document.querySelector(`.tramo-tipo-input[data-i="${i}"]`);
+    const hasta=hastaInput?parseFloat(hastaInput.value):t.hasta;
+    const tipo=(tipoInput?parseFloat(tipoInput.value):t.tipo*100)/100;
+    return { desde:t.desde, hasta:isNaN(hasta)?t.hasta:hasta, tipo:isNaN(tipo)?t.tipo:tipo };
+  });
+  // Rechain: each tramo's desde = previous hasta + 0.01
+  for(let i=1;i<updated.length;i++) updated[i].desde=updated[i-1].hasta+0.01;
+  tramosPerYear[year]=updated;
+  saveState(); render();
+  toast(`Tramos ${year} guardados ✓`);
+}
+
+function resetTramos(){
+  const year=selectedYear==='all'?currentYear:selectedYear;
+  if(!confirm(`¿Restablecer los tramos de ${year} a los valores por defecto?`)) return;
+  delete tramosPerYear[year];
+  editingTramos=false;
+  document.getElementById('btn-edit-tramos').textContent='✎ Editar';
+  document.getElementById('btn-edit-tramos').classList.remove('active');
+  document.getElementById('btn-reset-tramos').style.display='none';
+  saveState(); render();
+  toast(`Tramos ${year} restablecidos ✓`);
+}
+
+// ── RENDER ────────────────────────────────────────────
+function render(){
+  const salary=parseFloat(document.getElementById('salary').value)||0;
+  const year=selectedYear==='all'?currentYear:selectedYear;
+  const tramos=getTramosForYear(year);
+  const filtered=selectedYear==='all'?cobros:cobros.filter(c=>c.fecha.startsWith(selectedYear));
+  const totalFTMO=filtered.reduce((s,c)=>s+c.tuParteEUR,0);
+  const irpfSolo=calcIRPF(salary,tramos), irpfConFTMO=calcIRPF(salary+totalFTMO,tramos);
+  const impFTMO=irpfConFTMO.total-irpfSolo.total;
+  const netoFTMO=totalFTMO-impFTMO;
+  const tipoEfect=totalFTMO>0?impFTMO/totalFTMO*100:0;
+
+  document.getElementById('kpi-bruto').textContent    = totalFTMO>0?fmt(totalFTMO)+' €':'—';
+  document.getElementById('kpi-impuesto').textContent = impFTMO>0?fmt(impFTMO)+' €':'—';
+  document.getElementById('kpi-neto').textContent     = netoFTMO>0?fmt(netoFTMO)+' €':'—';
+  document.getElementById('kpi-tipo').textContent     = totalFTMO>0?fmt(tipoEfect,1)+' %':'—';
+
+  const n=filtered.length;
+  const yearLabel=selectedYear==='all'?'':` · ${selectedYear}`;
+  document.getElementById('badge-count').textContent=n+(n===1?' cobro':' cobros')+yearLabel;
+
+  // Tabla
+  const tbody=document.getElementById('tbody');
+  if(!filtered.length){
+    tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="empty-icon">◈</div><div>${cobros.length&&selectedYear!=='all'?'Sin cobros en '+selectedYear+'.':'Sin cobros registrados.'}</div><div>${cobros.length&&selectedYear!=='all'?'Cambia el año o añade un cobro.':'Añade tu primer cobro con el formulario.'}</div></div></td></tr>`;
+  } else {
+    tbody.innerHTML='';
+    filtered.forEach(c=>{
+      const prop=totalFTMO>0?c.tuParteEUR/totalFTMO:0;
+      const imp=impFTMO*prop, neto=c.tuParteEUR-imp;
+      const tr=document.createElement('tr'); tr.className='new-row'; tr.dataset.id=c.id;
+      tr.innerHTML=`<td>${fmtDate(c.fecha)}</td><td>${fmt(c.bruto,0)} $</td><td class="c-green">${fmt(c.tuParteEUR)} €</td><td>${fmt(neto)} €</td><td class="c-red">${fmt(imp)} €</td><td class="col-split">${Math.round(c.split*100)} %</td><td class="col-fx">${fmt(c.fx,4)}</td><td style="white-space:nowrap"><button class="btn-edit-row" onclick="editCobro(${c.id},this)">✎</button><button class="btn-del" onclick="deleteCobro(${c.id})">✕</button></td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Sumario
+  const sumBox=document.getElementById('sum-box');
+  if(totalFTMO>0){
+    sumBox.style.display='';
+    document.getElementById('s-solo').textContent  = fmt(irpfSolo.total)+' €';
+    document.getElementById('s-total').textContent = fmt(irpfConFTMO.total)+' €';
+    document.getElementById('s-diff').textContent  = fmt(impFTMO)+' €';
+  } else sumBox.style.display='none';
+
+  renderTramos(irpfConFTMO.desglose, tramos);
+}
+
+function renderTramos(desglose, tramos){
+  const year=selectedYear==='all'?currentYear:selectedYear;
+  if(!tramos) tramos=getTramosForYear(year);
+  const isCustom=!!tramosPerYear[year];
+  document.getElementById('btn-reset-tramos').style.display=(editingTramos||isCustom)?'':'none';
+
+  const wrap=document.getElementById('tramos-wrap');
+  wrap.innerHTML='';
+
+  const titleRow=document.createElement('div');
+  titleRow.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;';
+  titleRow.innerHTML=`<span class="tramos-title">Desglose por tramo · ${year}${isCustom?' <span style="color:var(--accent);font-size:9px">personalizado</span>':''}</span>`;
+  wrap.appendChild(titleRow);
+
+  tramos.forEach((t,i)=>{
+    const isLast=i===tramos.length-1;
+    const aplicado=desglose?desglose[i]?.aplicado:0;
+    const isActive=aplicado>0;
+
+    const div=document.createElement('div');
+
+    if(editingTramos){
+      div.className='tramo-row editing';
+      div.style.cssText='grid-template-columns: 1fr auto auto auto; gap:8px;';
+      div.innerHTML=`
+        <span style="font-size:10px;color:var(--text2)">${fmt(t.desde,0)} €  →</span>
+        ${isLast
+          ? `<span style="font-size:11px;color:var(--text3);min-width:80px;text-align:right">sin límite</span>`
+          : `<input class="tramo-input tramo-hasta" data-i="${i}" type="number" value="${t.hasta}" min="${t.desde+1}" step="1" title="Límite superior (€)">`
+        }
+        <input class="tramo-input tramo-tipo-input" data-i="${i}" type="number" value="${+(t.tipo*100).toFixed(1)}" min="0" max="99" step="0.1" title="Tipo (%)">
+        <span style="color:var(--text2);font-size:11px">%</span>
+      `;
+    } else {
+      div.className='tramo-row'+(isActive?' active':'');
+      const hasta=isLast?'∞':fmt(t.hasta+0.01,0)+' €';
+      div.innerHTML=`<span class="tramo-range">${fmt(t.desde,0)} – ${hasta}</span><span class="tramo-tipo">${Math.round(t.tipo*100)} %</span><span class="tramo-imp">${isActive?fmt(aplicado)+' €':'—'}</span>`;
+    }
+    wrap.appendChild(div);
+  });
+}
+
+// ── EXPORT ────────────────────────────────────────────
+function getRows(){
+  const salary=parseFloat(document.getElementById('salary').value)||0;
+  const year=selectedYear==='all'?currentYear:selectedYear;
+  const tramos=getTramosForYear(year);
+  const filtered=selectedYear==='all'?cobros:cobros.filter(c=>c.fecha.startsWith(selectedYear));
+  const totalFTMO=filtered.reduce((s,c)=>s+c.tuParteEUR,0);
+  const irpfSolo=calcIRPF(salary,tramos), irpfConFTMO=calcIRPF(salary+totalFTMO,tramos);
+  const impFTMO=irpfConFTMO.total-irpfSolo.total;
+  return { rows:filtered.map(c=>{
+    const prop=totalFTMO>0?c.tuParteEUR/totalFTMO:0, imp=fmtNum(impFTMO*prop);
+    return {'Fecha':fmtDate(c.fecha),'Bruto ($)':c.bruto,'Split (%)':Math.round(c.split*100),'Tipo cambio':c.fx,'Tu parte ($)':fmtNum(c.tuParteUSD),'Tu parte (€)':fmtNum(c.tuParteEUR),'Neto (€)':fmtNum(c.tuParteEUR-imp),'Impuesto (€)':imp};
+  }), salary, totalFTMO, impFTMO, netoFTMO:totalFTMO-impFTMO, tipoEfect:totalFTMO>0?impFTMO/totalFTMO*100:0 };
+}
+
+function exportCSV(){
+  const {rows}=getRows();
+  if(!rows.length){toast('No hay cobros para exportar');return;}
+  const headers=Object.keys(rows[0]);
+  const yearSuffix=selectedYear==='all'?'':'_'+selectedYear;
+  const csv=[headers.join(';'),...rows.map(r=>headers.map(h=>String(r[h]).replace(/\./g,',')).join(';'))].join('\n');
+  downloadBlob(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}),`FTMO_IRPF${yearSuffix}_${todayISO}.csv`);
+  toast('CSV descargado ✓');
+}
+
+function exportExcel(){
+  const {rows,salary,totalFTMO,impFTMO,netoFTMO,tipoEfect}=getRows();
+  if(!rows.length){toast('No hay cobros para exportar');return;}
+  const headers=Object.keys(rows[0]);
+  const yearLabel=selectedYear==='all'?'Todos los años':selectedYear;
+  const yearSuffix=selectedYear==='all'?'':'_'+selectedYear;
+  let html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>body{font-family:Calibri,sans-serif;font-size:11pt;}h2{color:#005a3c;font-size:14pt;margin-bottom:12px;}.summary{background:#f0faf5;padding:10px 14px;margin-bottom:16px;border-left:4px solid #00b87d;font-size:10pt;line-height:2;}table{border-collapse:collapse;width:100%;}th{background:#0a3d2e;color:#fff;padding:8px 12px;text-align:right;font-size:10pt;white-space:nowrap;}th:first-child{text-align:left;}td{padding:7px 12px;border-bottom:1px solid #e8e8e8;text-align:right;font-size:10pt;}td:first-child{text-align:left;}tr:nth-child(even)td{background:#f7f7f7;}.green{color:#007a50;font-weight:bold;}.red{color:#cc1f3a;font-weight:bold;}</style></head><body>
+  <h2>FTMO · Registro IRPF · ${yearLabel}</h2>
+  <div class="summary"><b>Salario base:</b> ${fmt(salary)} € &nbsp;·&nbsp; <b>Total cobrado:</b> ${fmt(totalFTMO)} €<br><b>Impuesto a guardar:</b> <span class="red">${fmt(impFTMO)} €</span> &nbsp;·&nbsp; <b>Neto real:</b> <span class="green">${fmt(netoFTMO)} €</span> &nbsp;·&nbsp; <b>Tipo efectivo:</b> ${fmt(tipoEfect,1)} %</div>
+  <table><thead><tr>`;
+  headers.forEach(h=>html+=`<th>${h}</th>`);
+  html+=`</tr></thead><tbody>`;
+  rows.forEach(r=>{html+=`<tr>`;headers.forEach(h=>{const cls=h.includes('Neto')?'green':h.includes('Impuesto')?'red':'';html+=`<td${cls?` class="${cls}"`:''}>${r[h]}</td>`;});html+=`</tr>`;});
+  html+=`</tbody></table></body></html>`;
+  downloadBlob(new Blob([html],{type:'application/vnd.ms-excel;charset=utf-8'}),`FTMO_IRPF${yearSuffix}_${todayISO}.xls`);
+  toast('Excel descargado ✓');
+}
+
+// ── IMPORT ────────────────────────────────────────────
+function importCSV(input){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try {
+      const text=e.target.result.replace(/^\uFEFF/,'');
+      const lines=text.split(/\r?\n/).filter(l=>l.trim());
+      if(lines.length<2){toast('CSV vacío');return;}
+      const sep=lines[0].includes(';')?';':',';
+      const headers=lines[0].split(sep).map(h=>h.trim().replace(/^"|"$/g,''));
+      const idx={};
+      const map={fecha:['fecha','date'],bruto:['bruto ($)','bruto'],split:['split (%)','split'],fx:['tipo cambio','fx','t/c']};
+      headers.forEach((h,i)=>{const hl=h.toLowerCase();for(const[k,a]of Object.entries(map)){if(a.some(x=>hl.includes(x)))idx[k]=i;}});
+      if(idx.fecha===undefined||idx.bruto===undefined){toast('Formato de CSV no reconocido');input.value='';return;}
+      const existingKeys=new Set(cobros.map(c=>c.fecha+'|'+c.bruto));
+      let imported=0, skipped=0;
+      lines.slice(1).forEach(line=>{
+        if(!line.trim()) return;
+        const cols=line.split(sep).map(c=>c.trim().replace(/^"|"$/g,''));
+        const raw=cols[idx.fecha]||''; let fechaISO='';
+        if(/^\d{2}\/\d{2}\/\d{4}$/.test(raw)){const[d,m,y]=raw.split('/');fechaISO=`${y}-${m}-${d}`;}
+        else if(/^\d{2}\/\d{2}\/\d{2}$/.test(raw)){const[d,m,y]=raw.split('/');fechaISO=`20${y}-${m}-${d}`;}
+        else if(/^\d{4}-\d{2}-\d{2}$/.test(raw)){fechaISO=raw;}
+        else{skipped++;return;}
+        const parseN=s=>parseFloat(String(s).replace(',','.'));
+        const bruto=parseN(cols[idx.bruto]);
+        const split=idx.split!==undefined?parseN(cols[idx.split])/100:0.8;
+        const fx=idx.fx!==undefined?parseN(cols[idx.fx]):currentFX;
+        if(isNaN(bruto)||bruto<=0){skipped++;return;}
+        const key=fechaISO+'|'+bruto;
+        if(existingKeys.has(key)){skipped++;return;}
+        existingKeys.add(key);
+        cobros.push({id:nextId++,fecha:fechaISO,bruto,split:isNaN(split)?0.8:split,fx:isNaN(fx)?currentFX:fx,tuParteUSD:bruto*(isNaN(split)?0.8:split),tuParteEUR:bruto*(isNaN(split)?0.8:split)*(isNaN(fx)?currentFX:fx)});
+        imported++;
+      });
+      cobros.sort((a,b)=>a.fecha.localeCompare(b.fecha));
+      saveState(); buildYearSelector(); render(); input.value='';
+      const plural = n => n !== 1 ? 's' : '';
+      const skipMsg = skipped > 0 ? ` (${skipped} omitido${plural(skipped)})` : '';
+      toast(`${imported} cobro${plural(imported)} importado${plural(imported)}${skipMsg} ✓`);
+    } catch(err){toast('Error al leer el archivo');input.value='';}
+  };
+  reader.readAsText(file,'UTF-8');
+}
+
+function downloadBlob(blob,filename){
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+</script>
+</body>
+</html>
