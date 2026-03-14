@@ -151,6 +151,14 @@ tr.editing-row td { background:var(--accent-dim); }
 .new-row { animation:fadeUp .25s ease both; }
 .toast { position:fixed; bottom:calc(24px + var(--safe-bottom)); left:50%; transform:translateX(-50%) translateY(20px); background:var(--surface); border:1px solid var(--accent); color:var(--accent); font-size:12px; padding:9px 18px; border-radius:6px; opacity:0; transition:all .3s; pointer-events:none; white-space:nowrap; z-index:999; }
 .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* SYNC PANEL */
+.sync-panel { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-top:14px; }
+.sync-toggle { width:100%; padding:13px 16px; background:none; border:none; border-bottom:1px solid transparent; display:flex; align-items:center; justify-content:space-between; cursor:pointer; -webkit-tap-highlight-color:transparent; color:var(--text2); font-family:var(--mono); font-size:11px; letter-spacing:.08em; transition:color .2s; }
+.sync-toggle:hover { color:var(--text); }
+.sync-toggle.open { border-bottom-color:var(--border); color:var(--accent); }
+.sync-body { display:none; padding:16px; }
+.sync-body.open { display:block; }
 </style>
 </head>
 <body>
@@ -245,6 +253,47 @@ tr.editing-row td { background:var(--accent-dim); }
           </div>
         </div>
       </div>
+
+      <!-- Sync GitLab -->
+      <div class="sync-panel">
+        <button class="sync-toggle" id="sync-toggle-btn" onclick="toggleSyncPanel()">
+          <span>⚙ Sincronización GitLab</span>
+          <span id="sync-status-dot" style="font-size:10px;font-family:var(--mono)">▸</span>
+        </button>
+        <div class="sync-body" id="sync-body">
+          <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:14px">
+            Guarda y sincroniza tus cobros en un repositorio <b style="color:var(--text)">privado</b> de GitLab entre todos tus dispositivos.
+          </div>
+          <div class="field">
+            <label>Usuario GitLab</label>
+            <input type="text" id="gl-user" placeholder="tu-usuario" autocomplete="off" autocorrect="off" autocapitalize="off">
+          </div>
+          <div class="field">
+            <label>Nombre del repositorio</label>
+            <input type="text" id="gl-repo" placeholder="ftmo-irpf-data" autocomplete="off" autocorrect="off" autocapitalize="off">
+          </div>
+          <div class="field">
+            <label>Personal Access Token
+              <a href="https://gitlab.com/-/user_settings/personal_access_tokens" target="_blank" style="font-size:10px;color:var(--accent);margin-left:6px;text-decoration:none">Crear token →</a>
+            </label>
+            <input type="password" id="gl-token" placeholder="glpat-xxxxxxxxxxxx" autocomplete="off">
+          </div>
+          <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
+            <button onclick="glSaveConfig()" style="flex:1;padding:10px;background:var(--accent);color:#000;border:none;border-radius:6px;font-family:var(--display);font-size:12px;letter-spacing:.08em;cursor:pointer;min-width:100px;touch-action:manipulation">GUARDAR</button>
+            <button onclick="glPush(true)" style="flex:1;padding:10px;background:var(--surface);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-family:var(--display);font-size:12px;letter-spacing:.08em;cursor:pointer;min-width:100px;touch-action:manipulation">↑ SUBIR</button>
+            <button onclick="glPull()" style="flex:1;padding:10px;background:var(--surface);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-family:var(--display);font-size:12px;letter-spacing:.08em;cursor:pointer;min-width:100px;touch-action:manipulation">↓ DESCARGAR</button>
+          </div>
+          <div id="gl-status" style="margin-top:12px;font-size:11px;font-family:var(--mono);color:var(--text3);min-height:16px"></div>
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);line-height:1.9">
+            <div>1. Crea un repo <b style="color:var(--text)">privado</b> en GitLab</div>
+            <div>2. Genera un token con scope <b style="color:var(--text)">api</b></div>
+            <div>3. Guarda la config · los cobros se suben automáticamente</div>
+            <div>4. En otro dispositivo → introduce config → <b style="color:var(--text)">Descargar</b></div>
+            <div style="margin-top:6px;color:var(--warn)">⚠ El token se guarda en localStorage</div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- Tabla cobros -->
@@ -288,8 +337,6 @@ const TRAMOS_DEFAULT = [
   { desde:208390, hasta:9999999,   tipo:0.49 },
 ];
 
-// tramosPerYear: { "2024": [...], "2025": [...] }
-// If a year has no custom tramos, falls back to TRAMOS_DEFAULT
 let tramosPerYear = {};
 let editingTramos = false;
 
@@ -327,6 +374,7 @@ function saveState(){
     cobros, nextId, tramosPerYear,
     salary: document.getElementById('salary').value
   }));
+  glPush(false);
 }
 
 function loadState(){
@@ -350,11 +398,11 @@ selectedYear=currentYear;
 buildYearSelector();
 render();
 refreshFX();
+glLoadConfig();
 
 // ── YEAR SELECTOR ─────────────────────────────────────
 function buildYearSelector(){
   const cobrosYears=[...new Set(cobros.map(c=>c.fecha.slice(0,4)))].sort();
-  // Always show at least the current year
   const years=[...new Set([...cobrosYears, currentYear])].sort();
   const wrap=document.getElementById('year-selector');
   wrap.innerHTML=''; wrap.style.display='flex';
@@ -370,7 +418,6 @@ function buildYearSelector(){
     btn.textContent=y; btn.onclick=()=>{selectedYear=y;document.getElementById('irpf-year').textContent=y;editingTramos=false;buildYearSelector();render();};
     wrap.appendChild(btn);
   });
-  // Update header year label
   if(selectedYear!=='all') document.getElementById('irpf-year').textContent=selectedYear;
   else document.getElementById('irpf-year').textContent=currentYear;
 }
@@ -380,7 +427,6 @@ async function refreshFX(){
   const dot=document.getElementById('fx-dot'), val=document.getElementById('fx-val'),
     ref=document.getElementById('fx-refresh'), err=document.getElementById('fx-err'),
     tag=document.getElementById('fx-live-tag');
-  // Show current value immediately while loading
   dot.className='fx-dot loading'; val.textContent=currentFX.toFixed(4); ref.classList.add('spin'); err.style.display='none'; tag.style.display='none';
   try {
     const controller=new AbortController();
@@ -430,14 +476,9 @@ function editCobro(id, btn){
   if(!cobro) return;
   const tr=btn.closest('tr');
   if(tr.classList.contains('editing-row')){ saveCobro(id, tr); return; }
-
-  // Remove any existing edit rows
   document.querySelectorAll('tr.editing-row').forEach(r=>r.remove());
-
   tr.classList.add('editing-row');
   btn.textContent='✓'; btn.classList.add('saving');
-
-  // Insert an expanded edit row below
   const editTr=document.createElement('tr');
   editTr.className='edit-expand-row';
   editTr.dataset.editId=id;
@@ -477,9 +518,7 @@ function saveCobro(id){
   toast('Cobro actualizado ✓');
 }
 
-function cancelEdit(id){
-  render();
-}
+function cancelEdit(id){ render(); }
 
 // ── TRAMOS: EDICIÓN ───────────────────────────────────
 function toggleEditTramos(){
@@ -505,7 +544,6 @@ function saveTramoEdits(){
     const tipo=(tipoInput?parseFloat(tipoInput.value):t.tipo*100)/100;
     return { desde:t.desde, hasta:isNaN(hasta)?t.hasta:hasta, tipo:isNaN(tipo)?t.tipo:tipo };
   });
-  // Rechain: each tramo's desde = previous hasta + 0.01
   for(let i=1;i<updated.length;i++) updated[i].desde=updated[i-1].hasta+0.01;
   tramosPerYear[year]=updated;
   saveState(); render();
@@ -545,7 +583,6 @@ function render(){
   const yearLabel=selectedYear==='all'?'':` · ${selectedYear}`;
   document.getElementById('badge-count').textContent=n+(n===1?' cobro':' cobros')+yearLabel;
 
-  // Tabla
   const tbody=document.getElementById('tbody');
   if(!filtered.length){
     tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="empty-icon">◈</div><div>${cobros.length&&selectedYear!=='all'?'Sin cobros en '+selectedYear+'.':'Sin cobros registrados.'}</div><div>${cobros.length&&selectedYear!=='all'?'Cambia el año o añade un cobro.':'Añade tu primer cobro con el formulario.'}</div></div></td></tr>`;
@@ -560,7 +597,6 @@ function render(){
     });
   }
 
-  // Sumario
   const sumBox=document.getElementById('sum-box');
   if(totalFTMO>0){
     sumBox.style.display='';
@@ -577,22 +613,17 @@ function renderTramos(desglose, tramos){
   if(!tramos) tramos=getTramosForYear(year);
   const isCustom=!!tramosPerYear[year];
   document.getElementById('btn-reset-tramos').style.display=(editingTramos||isCustom)?'':'none';
-
   const wrap=document.getElementById('tramos-wrap');
   wrap.innerHTML='';
-
   const titleRow=document.createElement('div');
   titleRow.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;';
   titleRow.innerHTML=`<span class="tramos-title">Desglose por tramo · ${year}${isCustom?' <span style="color:var(--accent);font-size:9px">personalizado</span>':''}</span>`;
   wrap.appendChild(titleRow);
-
   tramos.forEach((t,i)=>{
     const isLast=i===tramos.length-1;
     const aplicado=desglose?desglose[i]?.aplicado:0;
     const isActive=aplicado>0;
-
     const div=document.createElement('div');
-
     if(editingTramos){
       div.className='tramo-row editing';
       div.style.cssText='grid-template-columns: 1fr auto auto auto; gap:8px;';
@@ -657,7 +688,6 @@ function exportExcel(){
   toast('Excel descargado ✓');
 }
 
-// ── IMPORT ────────────────────────────────────────────
 function importCSV(input){
   const file=input.files[0]; if(!file) return;
   const reader=new FileReader();
@@ -695,8 +725,8 @@ function importCSV(input){
       });
       cobros.sort((a,b)=>a.fecha.localeCompare(b.fecha));
       saveState(); buildYearSelector(); render(); input.value='';
-      const plural = n => n !== 1 ? 's' : '';
-      const skipMsg = skipped > 0 ? ` (${skipped} omitido${plural(skipped)})` : '';
+      const plural=n=>n!==1?'s':'';
+      const skipMsg=skipped>0?` (${skipped} omitido${plural(skipped)})`:'';
       toast(`${imported} cobro${plural(imported)} importado${plural(imported)}${skipMsg} ✓`);
     } catch(err){toast('Error al leer el archivo');input.value='';}
   };
@@ -707,6 +737,105 @@ function downloadBlob(blob,filename){
   const url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);
   setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+// ── GITLAB SYNC ───────────────────────────────────────
+const GL_CFG_KEY='ftmo_irpf_gl_config';
+const GL_FILENAME='ftmo_irpf_data.json';
+const GL_BRANCH='main';
+let glConfig=null;
+
+function toggleSyncPanel(){
+  const body=document.getElementById('sync-body');
+  const btn=document.getElementById('sync-toggle-btn');
+  const dot=document.getElementById('sync-status-dot');
+  const isOpen=body.classList.contains('open');
+  body.classList.toggle('open',!isOpen);
+  btn.classList.toggle('open',!isOpen);
+  dot.textContent=isOpen?'▸':'▾';
+}
+
+function glLoadConfig(){
+  try{
+    const s=localStorage.getItem(GL_CFG_KEY);
+    if(s){ glConfig=JSON.parse(s); }
+  }catch(e){}
+  if(glConfig){
+    document.getElementById('gl-user').value=glConfig.user||'';
+    document.getElementById('gl-repo').value=glConfig.repo||'';
+    document.getElementById('gl-token').value=glConfig.token||'';
+    glSetStatus('Configurado · '+glConfig.user+'/'+glConfig.repo);
+  }
+}
+
+function glSaveConfig(){
+  const user=document.getElementById('gl-user').value.trim();
+  const repo=document.getElementById('gl-repo').value.trim();
+  const token=document.getElementById('gl-token').value.trim();
+  if(!user||!repo||!token){toast('Rellena todos los campos',true);return;}
+  glConfig={user,repo,token};
+  localStorage.setItem(GL_CFG_KEY,JSON.stringify(glConfig));
+  toast('Configuración guardada ✓');
+  glSetStatus('Configurado · '+user+'/'+repo);
+}
+
+function glSetStatus(msg,color='var(--text3)'){
+  const el=document.getElementById('gl-status');
+  if(el){el.style.color=color;el.textContent=msg;}
+}
+
+function glAPI(){return `https://gitlab.com/api/v4/projects/${encodeURIComponent(glConfig.user+'/'+glConfig.repo)}`;}
+function glHeaders(){return{'PRIVATE-TOKEN':glConfig.token,'Content-Type':'application/json'};}
+
+async function glPush(manual=false){
+  if(!glConfig) return;
+  if(manual) glSetStatus('Subiendo datos…');
+  try{
+    const salary=document.getElementById('salary').value;
+    const data={cobros,nextId,tramosPerYear,salary};
+    const content=JSON.stringify(data,null,2);
+    const checkUrl=`${glAPI()}/repository/files/${encodeURIComponent(GL_FILENAME)}?ref=${GL_BRANCH}`;
+    const check=await fetch(checkUrl,{headers:glHeaders()});
+    const exists=check.ok;
+    const body={branch:GL_BRANCH,content,commit_message:'FTMO IRPF sync '+new Date().toISOString()};
+    const r=await fetch(`${glAPI()}/repository/files/${encodeURIComponent(GL_FILENAME)}`,{
+      method:exists?'PUT':'POST',headers:glHeaders(),body:JSON.stringify(body)
+    });
+    if(!r.ok){const err=await r.json().catch(()=>({}));throw new Error(err.message||err.error||'HTTP '+r.status);}
+    const now=new Date().toLocaleTimeString('es-ES');
+    if(manual){glSetStatus('✓ Subido a las '+now,'var(--accent)');toast('Datos subidos a GitLab ✓');}
+    else glSetStatus('✓ Auto-sync '+now,'var(--text3)');
+  }catch(e){
+    glSetStatus('✗ Error: '+e.message,'var(--danger)');
+    if(manual) toast('Error subiendo a GitLab');
+    console.error('glPush',e);
+  }
+}
+
+async function glPull(){
+  if(!glConfig){toast('Configura GitLab primero');return;}
+  glSetStatus('Descargando datos…');
+  try{
+    const url=`${glAPI()}/repository/files/${encodeURIComponent(GL_FILENAME)}/raw?ref=${GL_BRANCH}`;
+    const r=await fetch(url,{headers:glHeaders()});
+    if(r.status===404){glSetStatus('No hay datos en GitLab todavía','var(--warn)');return;}
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    if(!data.cobros) throw new Error('Formato inválido');
+    cobros=data.cobros||[];
+    nextId=data.nextId||cobros.length+1;
+    tramosPerYear=data.tramosPerYear||{};
+    if(data.salary) document.getElementById('salary').value=data.salary;
+    localStorage.setItem(LS_KEY,JSON.stringify(data));
+    buildYearSelector(); render();
+    const now=new Date().toLocaleTimeString('es-ES');
+    glSetStatus('✓ Descargado a las '+now,'var(--accent)');
+    toast('Datos descargados de GitLab ✓');
+  }catch(e){
+    glSetStatus('✗ Error: '+e.message,'var(--danger)');
+    toast('Error descargando de GitLab');
+    console.error('glPull',e);
+  }
 }
 </script>
 </body>
